@@ -34,6 +34,10 @@ Route::prefix('subscriber')->group(function () {
 // Route::get('aweber/authorize', [AweberController::class, 'redirectToAweberAuthorization']);
 
 
+Route::get('/aweber/get-awebercode', [AweberController::class, 'get_awebercode']);
 Route::get('/aweber/authorize', [AweberController::class, 'redirectToAweberAuthorization']);
 Route::get('/aweber/token', [AweberController::class, 'getAweberToken']);
-Route::get('/aweber/account-id', [AweberController::class, 'getAweberAccountId']);
+Route::any('/aweber/account-id', [AweberController::class, 'getAweberAccountId']);
+Route::any('/aweber/subscribers', [AweberController::class, 'getAweberSubscribers']);
+Route::any('/aweber/find', [AweberController::class, 'findAweberSubscriber']);
+Route::get('/aweber/delete', [AweberController::class, 'deleteAweberSubscriber']);
