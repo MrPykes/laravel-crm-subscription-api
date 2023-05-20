@@ -46,15 +46,33 @@
                         </a>
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
-                                <a href="/add-new" class="nav-link">
+                                <a href="/subscriber/add-new" class="nav-link">
                                     <!-- <i class="far fa-circle nav-icon"></i> -->
                                     <p>Add New List</p>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="/manage-list" class="nav-link">
+                                <a href="/subscriber/manage-list" class="nav-link">
                                     <!-- <i class="far fa-circle nav-icon"></i> -->
                                     <p>Manage List</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="/unsubscribe" class="nav-link">
+                                    <!-- <i class="far fa-circle nav-icon"></i> -->
+                                    <p>Unsubscribe</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="/getresponse/contacts" class="nav-link">
+                                    <!-- <i class="far fa-circle nav-icon"></i> -->
+                                    <p>GetResponse Contact List</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="/aweber/contacts" class="nav-link">
+                                    <!-- <i class="far fa-circle nav-icon"></i> -->
+                                    <p>Aweber Contact List</p>
                                 </a>
                             </li>
                         </ul>

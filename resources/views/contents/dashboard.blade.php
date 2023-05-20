@@ -11,6 +11,7 @@
             <section class="col-lg-12 connectedSortable">
                 <!-- Custom tabs (Charts with tabs)-->
                 <h2>Welcome to Dashboard Section</h2>
+                {{config('getresponse.acess_token')}}
                 <!-- /.card -->
             </section>
             <!-- /.Left col -->

@@ -27,7 +27,8 @@ class LoginController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = DashboardController::dashboard;
+    // protected $redirectTo = DashboardController::dashboard;
+    protected $redirectTo = '/aweber/login';
 
     /**
      * Create a new controller instance.

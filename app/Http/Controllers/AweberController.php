@@ -17,65 +17,73 @@ class AweberController extends Controller
 
     public function __construct()
     {
-        $this->clientId = 'unj7Pu5Wz8HAcmnkdbExUBN8W99n796H';
-        $this->clientSecret = 'DXYDHdcRVTmQk0mCPZlixnH5g2f2CzBv';
+        $this->clientId = config('aweber.clientId');
+        $this->clientSecret = config('aweber.clientSecret');
         $this->redirectUri = 'http://127.0.0.1:8000/api/aweber/token';
         $this->scope = 'account.read list.read subscriber.read subscriber.write';
-        $this->token = '65vVdAcWDLnaT9DMKWELz1VNjW9GwKIL';
+        $this->token = config('aweber.access_token');
     }
 
-    function redirectToAweberAuthorization(Request $request)
+    function login(Request $request)
     {
-        // Replace with your AWeber credentials
-        $clientId = 'unj7Pu5Wz8HAcmnkdbExUBN8W99n796H';
-        $redirectUri = 'http://127.0.0.1:8000/api/aweber/token';
-
-        $scope = 'account.read list.read'; // Specify the desired scope
-
-        // Build the AWeber authorization URL
-        $authorizationUrl = sprintf(
-            'https://auth.aweber.com/oauth2/authorize?response_type=code&client_id=%s&scope=%s&redirect_uri=%s',
-            $this->clientId,
-            $this->scope,
-            $this->redirectUri
-        );
-        // Redirect the user to the AWeber authorization URL
-        return redirect()->away($authorizationUrl);
-    }
-
-    function getAweberToken(Request $request)
-    {
-        // $this->clientId = 'unj7Pu5Wz8HAcmnkdbExUBN8W99n796H';
-        // $this->clientSecret = 'DXYDHdcRVTmQk0mCPZlixnH5g2f2CzBv';
-        $response = Http::asForm()->post('https://auth.aweber.com/oauth2/token', [
-            'grant_type' => 'authorization_code',
-            'code' => $request->input('code'),
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
+        $provider = new GenericProvider([
+            'clientId' => 'unj7Pu5Wz8HAcmnkdbExUBN8W99n796H',
+            'clientSecret' => 'DXYDHdcRVTmQk0mCPZlixnH5g2f2CzBv',
+            'redirectUri' => 'http://127.0.0.1:8000/aweber/callback',
+            'urlAuthorize' => 'https://auth.aweber.com/oauth2/authorize',
+            'urlAccessToken' => 'https://auth.aweber.com/oauth2/token',
+            'urlResourceOwnerDetails' => 'https://api.aweber.com/1.0/accounts',
+            'scopes' => 'account.read list.read subscriber.read subscriber.write'
         ]);
 
-        if ($response->successful()) {
-            $token = $response->json()['access_token'];
-            return response()->json(['token' => $token]);
-        } else {
-            $error = $response->json();
+        $authorizationUrl = $provider->getAuthorizationUrl();
 
-            return response()->json(['error' => $error], $response->status());
-        }
+        // Store the OAuth state parameter for security verification
+        session(['oauth2state' => $provider->getState()]);
+
+        return redirect($authorizationUrl);
     }
 
-    public function getAweberAccountId()
+    function callback(Request $request)
     {
-        // Build the AWeber API endpoint URL
-        // $url = 'https://api.aweber.com/1.0/accounts';
-        // $url = "https://api.aweber.com/1.0/accounts/1643136/lists/";
-        // $url = "https://api.aweber.com/1.0/accounts/1643136/lists/5839405";
-        // $url = "`https://api.aweber.com/1.0/accounts/1643136/lists/5839405/subscribers";
+        $provider = new GenericProvider([
+            'clientId' => 'unj7Pu5Wz8HAcmnkdbExUBN8W99n796H',
+            'clientSecret' => 'DXYDHdcRVTmQk0mCPZlixnH5g2f2CzBv',
+            // 'redirectUri' => 'http://127.0.0.1:8000/login/aweber/callback',
+            'redirectUri' => 'http://127.0.0.1:8000/aweber/callback',
+            'urlAuthorize' => 'https://auth.aweber.com/oauth2/authorize',
+            'urlAccessToken' => 'https://auth.aweber.com/oauth2/token',
+            'urlResourceOwnerDetails' => 'https://api.aweber.com/1.0/accounts',
+        ]);
 
-        $url = "https://api.aweber.com/1.0/accounts/5844925/lists/";
+        $code = $request->query('code');
 
+        // Exchange the authorization code for an access token
+        $newAccessToken = $provider->getAccessToken('authorization_code', [
+            'code' => $code,
+        ]);
 
-        // Make the API request
+        $envFilePath = base_path('.env');
+        $envContent = file_get_contents($envFilePath);
+
+        // Update the access token value
+        $oldAccessToken = env('AWEBER_ACCESS_TOKEN');
+        if ($oldAccessToken !== $newAccessToken) {
+            $envContent = str_replace(
+                'AWEBER_ACCESS_TOKEN=' . $oldAccessToken,
+                'AWEBER_ACCESS_TOKEN=' . $newAccessToken,
+                $envContent
+            );
+        }
+
+        // Save the changes back to the .env file
+        file_put_contents($envFilePath, $envContent);
+        return redirect('/dashboard');
+    }
+
+    public function getAweberAccounts()
+    {
+        $url = "https://api.aweber.com/1.0/accounts/";
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->token,
@@ -84,96 +92,72 @@ class AweberController extends Controller
 
         if ($response->successful()) {
             $accounts = $response->json();
-            // $accountId = $accounts['entries'][0]['id'];
 
-            dd($accounts);
-            // $subscribers = $this->getAweberSubscribers($accountId);
-
-            return $accounts;
-            // if (count($accounts) > 0) {
-            //     $accountId = $accounts;
-            //     return response()->json(['account_id' => $accountId]);
-            // }
+            if (count($accounts['entries']) > 0) {
+                return response()->json($accounts['entries'][0]);
+            } else {
+                return "No Accounts";
+            }
         } else {
             // Handle the error response from AWeber
             $error = $response->json();
-            dd($error);
+            return $error;
             // Handle the error response
             // ...
         }
     }
-
-    public function getAweberSubscribers()
+    public function getAweberList()
     {
-        // Replace with your AWeber credentials;
-
-        // Build the AWeber API endpoint URL
-        // $url = "https://api.aweber.com/1.0/accounts/{$accountId}/lists/";
-        // $url = "https://api.aweber.com/1.0/accounts/1643136/lists/5839405/subscribers";
-        $url = "https://api.aweber.com/1.0/accounts/me/lists/5844925/subscribers";
-
-
-        // Make the API request
-        $response = Http::withHeaders([
-            // 'User-Agent' => 'AWeber-PHP-code-sample/1.0',
-            'Authorization' => 'Bearer ' . $this->token,
-            // 'Content-Type' => 'application/json',
-        ])->get($url);
-
-        if ($response->successful()) {
-            $subscribers = $response->json();
-            // Process the list of subscribers as needed
-            // ...
-            dd(response()->json($subscribers));
-            return response()->json($subscribers);
-        } else {
-            // Handle the error response from AWeber
-            $error = $response->json();
-            dd($error);
-            // Handle the error response
-            // ...
-        }
-    }
-
-    function findAweberSubscriber($email)
-    {
-        $url = "https://api.aweber.com/1.0/accounts/1643136/lists/5844925/subscribers";
-        // $url = "https://api.aweber.com/1.0/accounts/{$accountId}/lists/{$listId}/subscribers";
-        $params = [
-            'ws.op' => 'find',
-            'email' => $email,
-        ];
-        $findUrl = $url . '?' . http_build_query($params);
-        // $response = $client->get($findUrl, ['headers' => $headers]);
-        // $body = json_decode($response->getBody(), true);
+        $data = $this->getAweberAccounts();
+        $account = json_decode($data->getContent(), true);
+        $url = $account['lists_collection_link'];
         $response = Http::withHeaders([
             'User-Agent' => 'AWeber-PHP-code-sample/1.0',
             'Authorization' => 'Bearer ' . $this->token,
             'Content-Type' => 'application/json',
-        ])->get($findUrl);
+        ])->get($url);
 
         if ($response->successful()) {
-            $content = $response->json();
-            $entries = $content['entries'][0];
-            return $entries;
+            $list = $response->json();
+            return response()->json($list['entries'][2]);
         } else {
-            // Handle the error response from AWeber
             $error = $response->json();
-            // Handle the error response
-            // ...
+            return $error;
         }
     }
-    function deleteAweberSubscriber()
+    public function getAweberContacts()
     {
-        $entries = $this->findAweberSubscriber('edcali704.webdev@gmail.com');
+        $data = $this->getAweberList();
+        $list = json_decode($data->getContent(), true);
+        $url = $list['subscribers_collection_link'];
+        $response = Http::withHeaders([
+            'User-Agent' => 'AWeber-PHP-code-sample/1.0',
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type' => 'application/json',
+        ])->get($url);
 
-        $url = "https://api.aweber.com/1.0/accounts/1643136/lists/5844925/subscribers/80026217";
+        if ($response->successful()) {
+            $body = $response->getBody();
+            $contacts = json_decode($body, true);
+            return view('contents.aweber', ['contacts' => $contacts['entries']]);
+        } else {
+            $error = $response->json();
+            return $error;
+        }
+    }
+
+    function deleteAweberSubscriber($id)
+    {
+        $data = $this->getAweberList();
+        $list = json_decode($data->getContent(), true);
+        $url = $list['subscribers_collection_link'] . "/" . $id;
+
+        // $url = "https://api.aweber.com/1.0/accounts/1643136/lists/5844925/subscribers;
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->token,
         ])->delete($url);
 
-        dd($response->json());
         if ($response->successful()) {
             echo 'Subscriber deleted successfully.';
         } else {
